@@ -6,6 +6,7 @@ import (
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	"math"
 	"strings"
 	"time"
 )
@@ -67,4 +68,37 @@ func parseFieldError(e validator.FieldError) string {
 }
 func parseMarshallingError(e json.UnmarshalTypeError) string {
 	return fmt.Sprintf("The field %s must be a %s", e.Field, e.Type.String())
+}
+
+func FindMinimumFromFloatingNumbers(floatingNumbers []float64) float64 {
+	minimum := floatingNumbers[0]
+	for _, number := range floatingNumbers {
+		if number < minimum {
+			minimum = number
+		}
+	}
+	return minimum
+}
+
+func FindMaximumFromFloatingNumbers(floatingNumbers []float64) float64 {
+	maximum := floatingNumbers[0]
+	for _, number := range floatingNumbers {
+		if number > maximum {
+			maximum = number
+		}
+	}
+	return maximum
+}
+
+func CreateLinearlySpacedFloatingNumbersArray(startingNumber, terminatingNumber float64, numberOfItems int) []float64 {
+	floatingNumbers := make([]float64, numberOfItems)
+	stepper := (terminatingNumber - startingNumber) / float64(numberOfItems-1)
+	for i := 0; i < numberOfItems; i++ {
+		floatingNumbers[i] = startingNumber + float64(i)*stepper
+	}
+	return floatingNumbers
+}
+
+func FormatFloatingNumberToCurrency(floatingNumber float64) float64 {
+	return math.Floor(floatingNumber*100) / 100
 }
