@@ -9,8 +9,8 @@ const (
 // Contract Option Type Constants
 
 const (
-	ContractsOptionTypeCall = "Call"
-	ContractsOptionTypePut  = "Put"
+	ContractsOptionTypeCall = "call"
+	ContractsOptionTypePut  = "put"
 )
 
 // Contract Option Long Short
@@ -18,11 +18,4 @@ const (
 const (
 	ContractsOptionLong  = "long"
 	ContractsOptionShort = "short"
-)
-
-// Calculation Factors Constants
-
-const (
-	PriceRangeDifferentialFactor      = 100
-	NumberOfLinearlySpacedPriceRanges = 500
 )

@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"github.com/Aries-Financial-inc/golang-dev-logic-challenge-sulavneupane/constants"
 	"github.com/Aries-Financial-inc/golang-dev-logic-challenge-sulavneupane/errors"
 	"github.com/Aries-Financial-inc/golang-dev-logic-challenge-sulavneupane/model/payload"
@@ -9,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"math"
 	"net/http"
+	"strings"
+	"time"
 )
 
 func analyzeOptionsContracts(context *gin.Context) {
@@ -20,15 +23,12 @@ func analyzeOptionsContracts(context *gin.Context) {
 		})
 	}
 
-	// Validate if there are more than 4 contracts
-	if len(payload) > 4 {
+	if err := validateInputFields(payload); err != nil {
 		context.AbortWithStatusJSON(http.StatusBadRequest, errors.ErrorResponse{
 			ErrorCode: errors.ErrorCodeBadRequest,
-			Message:   "too many option contracts",
+			Message:   err.Error(),
 		})
 	}
-
-	// TODO: Validate input fields.
 
 	context.JSON(http.StatusOK, model_response.AnalysisResponse{
 		XYValues:        calculateXYValues(payload),
@@ -88,9 +88,13 @@ func getStrikePrices(contracts []model_payload.OptionsContract) []float64 {
 
 func getPriceRanges(contracts []model_payload.OptionsContract) []float64 {
 	strikePrices := getStrikePrices(contracts)
-	minimumPrice := utils.FindMinimumFromFloatingNumbers(strikePrices) - constants.PriceRangeDifferentialFactor
-	maximumPrice := utils.FindMaximumFromFloatingNumbers(strikePrices) + constants.PriceRangeDifferentialFactor
-	priceRanges := utils.CreateLinearlySpacedFloatingNumbersArray(minimumPrice, maximumPrice, constants.NumberOfLinearlySpacedPriceRanges)
+	averageStrikePrice := getAverageStrikePrice(contracts)
+	averageNoOfDays := getAverageNoOfDays(contracts)
+
+	minimumPrice := utils.FindMinimumFromFloatingNumbers(strikePrices) - averageStrikePrice
+	maximumPrice := utils.FindMaximumFromFloatingNumbers(strikePrices) + averageStrikePrice
+	priceRanges := utils.CreateLinearlySpacedFloatingNumbersArray(minimumPrice, maximumPrice, averageNoOfDays)
+
 	return priceRanges
 }
 
@@ -106,18 +110,18 @@ func getProfitLoss(contracts []model_payload.OptionsContract) []float64 {
 		premium := getPremium(contract.Bid, contract.Ask)
 
 		for i, price := range prices {
-			switch contract.Type {
+			switch strings.ToLower(contract.Type) {
 			case constants.ContractsOptionTypeCall:
-				if contract.LongShort == constants.ContractsOptionLong {
+				if strings.ToLower(contract.LongShort) == constants.ContractsOptionLong {
 					profitLoss[i] += math.Max(price-contract.StrikePrice, 0) - premium
-				} else if contract.LongShort == constants.ContractsOptionShort {
+				} else if strings.ToLower(contract.LongShort) == constants.ContractsOptionShort {
 					profitLoss[i] += premium - math.Max(price-contract.StrikePrice, 0)
 				}
 
 			case constants.ContractsOptionTypePut:
-				if contract.LongShort == constants.ContractsOptionLong {
+				if strings.ToLower(contract.LongShort) == constants.ContractsOptionLong {
 					profitLoss[i] += math.Max(contract.StrikePrice-price, 0) - premium
-				} else if contract.LongShort == constants.ContractsOptionShort {
+				} else if strings.ToLower(contract.LongShort) == constants.ContractsOptionShort {
 					profitLoss[i] += premium - math.Max(contract.StrikePrice-price, 0)
 				}
 
@@ -127,4 +131,46 @@ func getProfitLoss(contracts []model_payload.OptionsContract) []float64 {
 	}
 
 	return profitLoss
+}
+
+func getAverageStrikePrice(contracts []model_payload.OptionsContract) float64 {
+	totalStrikePrice := 0.0
+	strikePrices := getStrikePrices(contracts)
+	for _, strikePrice := range strikePrices {
+		totalStrikePrice += strikePrice
+	}
+	return totalStrikePrice / float64(len(strikePrices))
+}
+
+func getAverageNoOfDays(contracts []model_payload.OptionsContract) int {
+	totalNoOfDays := 0
+	for _, contract := range contracts {
+		totalNoOfDays += int(math.Round(contract.ExpirationDate.Sub(time.Now()).Hours() / 24))
+	}
+	return int(math.Round(float64(totalNoOfDays) / float64(len(contracts))))
+}
+
+func validateInputFields(payload []model_payload.OptionsContract) error {
+	// Validate if there are more than 4 contracts
+	if len(payload) > 4 {
+		return errors.New("too many option contracts")
+	}
+
+	// Validate options contract type
+	for _, contract := range payload {
+		if strings.ToLower(contract.Type) != constants.ContractsOptionTypeCall &&
+			strings.ToLower(contract.Type) != constants.ContractsOptionTypePut {
+			return errors.New(fmt.Sprintf("invalid contract option type %s", contract.Type))
+		}
+	}
+
+	// Validate options contract long short
+	for _, contract := range payload {
+		if strings.ToLower(contract.LongShort) != constants.ContractsOptionLong &&
+			strings.ToLower(contract.LongShort) != constants.ContractsOptionShort {
+			return errors.New(fmt.Sprintf("invalid contract option long/short: %s", contract.LongShort))
+		}
+	}
+
+	return nil
 }
