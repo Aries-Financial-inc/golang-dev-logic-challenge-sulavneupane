@@ -4,6 +4,10 @@ package errors
 
 const (
 	ErrorCodeBadRequest = 400
+
+	ErrorCodeTooManyOptionsContracts         = 600
+	ErrorCodeInvalidOptionsContractType      = 601
+	ErrorCodeInvalidOptionsContractLongShort = 602
 )
 
 type ErrorResponse struct {

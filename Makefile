@@ -19,3 +19,7 @@ update-all-packages:
 run-api:
 	@./scripts/go_version.sh
 	go run main.go
+
+run-tests:
+	@./scripts/go_version.sh
+	go test ./... -v -coverpkg=./...

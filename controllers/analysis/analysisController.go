@@ -21,13 +21,15 @@ func analyzeOptionsContracts(context *gin.Context) {
 			ErrorCode: errors.ErrorCodeBadRequest,
 			Message:   utils.ParseValidationError(err),
 		})
+		return
 	}
 
-	if err := validateInputFields(payload); err != nil {
+	if err, errorCode := validateInputFields(payload); err != nil {
 		context.AbortWithStatusJSON(http.StatusBadRequest, errors.ErrorResponse{
-			ErrorCode: errors.ErrorCodeBadRequest,
+			ErrorCode: errorCode,
 			Message:   err.Error(),
 		})
+		return
 	}
 
 	context.JSON(http.StatusOK, model_response.AnalysisResponse{
@@ -150,17 +152,17 @@ func getAverageNoOfDays(contracts []model_payload.OptionsContract) int {
 	return int(math.Round(float64(totalNoOfDays) / float64(len(contracts))))
 }
 
-func validateInputFields(payload []model_payload.OptionsContract) error {
+func validateInputFields(payload []model_payload.OptionsContract) (error, int) {
 	// Validate if there are more than 4 contracts
 	if len(payload) > 4 {
-		return errors.New("too many option contracts")
+		return errors.New("too many option contracts"), errors.ErrorCodeTooManyOptionsContracts
 	}
 
 	// Validate options contract type
 	for _, contract := range payload {
 		if strings.ToLower(contract.Type) != constants.ContractsOptionTypeCall &&
 			strings.ToLower(contract.Type) != constants.ContractsOptionTypePut {
-			return errors.New(fmt.Sprintf("invalid contract option type %s", contract.Type))
+			return errors.New(fmt.Sprintf("invalid contract option type %s", contract.Type)), errors.ErrorCodeInvalidOptionsContractType
 		}
 	}
 
@@ -168,9 +170,9 @@ func validateInputFields(payload []model_payload.OptionsContract) error {
 	for _, contract := range payload {
 		if strings.ToLower(contract.LongShort) != constants.ContractsOptionLong &&
 			strings.ToLower(contract.LongShort) != constants.ContractsOptionShort {
-			return errors.New(fmt.Sprintf("invalid contract option long/short: %s", contract.LongShort))
+			return errors.New(fmt.Sprintf("invalid contract option long/short: %s", contract.LongShort)), errors.ErrorCodeInvalidOptionsContractLongShort
 		}
 	}
 
-	return nil
+	return nil, 0
 }
